@@ -1,0 +1,24 @@
+{
+  "type": "module",
+  "scripts": {
+    "build": "tsc src/reviewPr.ts --outDir dist --target es2020 --module esnext --moduleResolution node",
+    "start:pr": "npm run build && node dist/reviewPr.js",
+    "test:local": "npm run build && node dist/reviewPr.js"
+  },
+  "dependencies": {
+    "@octokit/rest": "^22.0.0",
+    "dotenv": "^17.2.2",
+    "openai": "^5.20.1"
+  },
+  "name": "review-action",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.2"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
