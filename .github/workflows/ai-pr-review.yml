@@ -1,8 +1,10 @@
 name: AI PR review
 
 on:
-  pull_request:
-    types: [opened, synchronize]
+  workflow_call:
+    secrets:
+      OPENAI_API_KEY:
+        required: true
 
 concurrency:
   group: ai-pr-review-${{ github.event.pull_request.number }}
