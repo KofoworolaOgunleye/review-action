@@ -76,10 +76,12 @@ runs:
 
     - name: Install dependencies
       shell: bash
+      working-directory: ${{ github.action_path }}
       run: npm ci
 
     - name: Build
       shell: bash
+      working-directory: ${{ github.action_path }}
       run: npm run build
 
     - name: Get PR diff
