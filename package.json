@@ -1,9 +1,8 @@
 {
   "type": "module",
   "scripts": {
-    "build": "tsc src/reviewPr.ts --outDir dist --target es2020 --module esnext --moduleResolution node",
-    "start:pr": "npm run build && node dist/reviewPr.js",
-    "test:local": "npm run build && node dist/reviewPr.js"
+    "build": "tsc src/reviewPr.ts --outDir actions/ai_pr_reviewer/dist --target es2020 --module esnext --moduleResolution node",
+    "start:pr": "npm run build && node actions/ai_pr_reviewer/dist/reviewPr.js"
   },
   "dependencies": {
     "@octokit/rest": "^22.0.0",
