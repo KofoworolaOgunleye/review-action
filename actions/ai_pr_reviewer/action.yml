@@ -40,18 +40,18 @@ runs:
               }
             }
 
-    - name: Add ai-review label to PR
-      if: github.event.pull_request.body && contains(github.event.pull_request.body, '/ai-review')
-      uses: actions/github-script@v7
-      with:
-          github-token: ${{ inputs.github_token }}
-          script: |
-            await github.rest.issues.addLabels({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              labels: ['ai-review']
-            });
+    # - name: Add ai-review label to PR
+    #   if: github.event.pull_request.body && contains(github.event.pull_request.body, '/ai-review')
+    #   uses: actions/github-script@v7
+    #   with:
+    #       github-token: ${{ inputs.github_token }}
+    #       script: |
+    #         await github.rest.issues.addLabels({
+    #           owner: context.repo.owner,
+    #           repo: context.repo.repo,
+    #           issue_number: context.issue.number,
+    #           labels: ['ai-review']
+    #         });
           
     - name: Check if ai-review label exists on PR
       id: check-label
@@ -65,11 +65,13 @@ runs:
           return hasAiReviewLabel;
 
     - name: Checkout repo
+      if: steps.check-label.outputs.has-ai-review-label == 'true'
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
 
     - name: Setup Node.js
+      if: steps.check-label.outputs.has-ai-review-label == 'true'
       uses: actions/setup-node@v4
       with:
         node-version: '20'
@@ -77,15 +79,14 @@ runs:
     - name: Install dependencies
       shell: bash
       working-directory: ${{ github.action_path }}
-      run: npm ci
+      run: npm ci && npm run build
 
-    - name: Build
-      shell: bash
-      working-directory: ${{ github.action_path }}
-      run: npm run build
+    # - name: Build
+    #   shell: bash
+    #   working-directory: ${{ github.action_path }}
+    #   run: npm run build
 
     - name: Get PR diff
-      id: pr-diff
       shell: bash
       run: |
           git diff origin/${{ github.event.pull_request.base.ref }}...HEAD > pr.diff

@@ -67,8 +67,7 @@ Given the PR diff below, produce:
 - A short summary of what changed in the PR and stick to the facts.
 - Potential bugs, logic flaws, typos, incorrect resource usage or edge cases introduced.
 - Security concerns.
-- Suggestions for improvements (performance, style, tests).
-- Suggestions for best practices.
+- Suggestions for improvements (performance, style, tests) and best practices.
 - Provide comments and suggestions ONLY if there is something to improve, otherwise "reviews" should be an empty array.
 - Write the comment in GitHub Markdown format.
 - Keep the review actionable, numbered, and include exact file paths and line snippets when relevant.
@@ -128,12 +127,12 @@ Given the PR diff below, produce:
   } catch (error) {
     console.error('Error during review:', error);
 
-    await octokit.rest.issues.createComment({
-      owner,
-      repo,
-      issue_number: parseInt(PR_NUMBER),
-      body: `## AI Review Failed\n\nThe AI review encountered an error: ${error.message}`
-    });
+    // await octokit.rest.issues.createComment({
+    //   owner,
+    //   repo,
+    //   issue_number: parseInt(PR_NUMBER),
+    //   body: `## AI Review Failed\n\nThe AI review encountered an error: ${error.message}`
+    // });
 
     process.exit(1);
   }
