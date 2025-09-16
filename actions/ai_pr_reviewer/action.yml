@@ -12,6 +12,7 @@ runs:
     - name: Create ai-review label if it doesn't exist
       uses: actions/github-script@v7
       with:
+          github-token: ${{ inputs.github_token }}
           script: |
             try {
               await github.rest.issues.getLabel({
@@ -39,6 +40,7 @@ runs:
       if: github.event.pull_request.body && contains(github.event.pull_request.body, '/ai-review')
       uses: actions/github-script@v7
       with:
+          github-token: ${{ inputs.github_token }}
           script: |
             await github.rest.issues.addLabels({
               owner: context.repo.owner,
@@ -51,6 +53,7 @@ runs:
       id: check-label
       uses: actions/github-script@v7
       with:
+        github-token: ${{ inputs.github_token }}
         script: |
           const labels = context.payload.pull_request.labels.map(label => label.name);
           const hasAiReviewLabel = labels.includes('ai-review');
@@ -68,19 +71,23 @@ runs:
         node-version: '20'
 
     - name: Install dependencies
+      shell: bash
       run: npm ci
 
     - name: Build
+      shell: bash
       run: npm run build
 
     - name: Get PR diff
       id: pr-diff
+      shell: bash
       run: |
           git diff origin/${{ github.event.pull_request.base.ref }}...HEAD > pr.diff
           echo "Diff saved to pr.diff"
 
     - name: Run AI review
       if: steps.check-label.outputs.has-ai-review-label == 'true'
+      shell: bash
       env:
         OPENAI_API_KEY: ${{ inputs.openai_api_key }}
         GITHUB_TOKEN: ${{ inputs.github_token }}
