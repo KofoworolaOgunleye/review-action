@@ -1,92 +1,92 @@
-name: AI PR review
+# name: AI PR review
 
-on:
-  workflow_call:
-    secrets:
-      OPENAI_API_KEY:
-        required: true
+# on:
+#   workflow_call:
+#     secrets:
+#       OPENAI_API_KEY:
+#         required: true
 
-concurrency:
-  group: ai-pr-review-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+# concurrency:
+#   group: ai-pr-review-${{ github.event.pull_request.number }}
+#   cancel-in-progress: true
 
-jobs:
-  create-label:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Create ai-review label if it doesn't exist
-        uses: actions/github-script@v7
-        with:
-          script: |
-            try {
-              await github.rest.issues.getLabel({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                name: 'ai-review'
-              });
-              console.log('Label ai-review already exists');
-            } catch (error) {
-              if (error.status === 404) {
-                await github.rest.issues.createLabel({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  name: 'ai-review',
-                  description: 'Trigger AI code review',
-                  color: '6def69'
-                });
-                console.log('Created ai-review label');
-              } else {
-                throw error;
-              }
-            }
-  add-label:         
-    steps:        
-      - name: Add ai-review label to PR
-        if: github.event.pull_request.body && contains(github.event.pull_request.body, '/ai-review')
-        needs: create-label
-        uses: actions/github-script@v7
-        with:
-          script: |
-            await github.rest.issues.addLabels({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              labels: ['ai-review']
-            });
-  review:
-    if: contains(github.event.pull_request.labels.*.name, 'ai-review')
-    needs: add-label
-    runs-on: ubuntu-latest
+# jobs:
+#   create-label:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Create ai-review label if it doesn't exist
+#         uses: actions/github-script@v7
+#         with:
+#           script: |
+#             try {
+#               await github.rest.issues.getLabel({
+#                 owner: context.repo.owner,
+#                 repo: context.repo.repo,
+#                 name: 'ai-review'
+#               });
+#               console.log('Label ai-review already exists');
+#             } catch (error) {
+#               if (error.status === 404) {
+#                 await github.rest.issues.createLabel({
+#                   owner: context.repo.owner,
+#                   repo: context.repo.repo,
+#                   name: 'ai-review',
+#                   description: 'Trigger AI code review',
+#                   color: '6def69'
+#                 });
+#                 console.log('Created ai-review label');
+#               } else {
+#                 throw error;
+#               }
+#             }
+#   add-label:         
+#     steps:        
+#       - name: Add ai-review label to PR
+#         if: github.event.pull_request.body && contains(github.event.pull_request.body, '/ai-review')
+#         needs: create-label
+#         uses: actions/github-script@v7
+#         with:
+#           script: |
+#             await github.rest.issues.addLabels({
+#               owner: context.repo.owner,
+#               repo: context.repo.repo,
+#               issue_number: context.issue.number,
+#               labels: ['ai-review']
+#             });
+#   review:
+#     if: contains(github.event.pull_request.labels.*.name, 'ai-review')
+#     needs: add-label
+#     runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+#     steps:
+#       - name: Checkout repo
+#         uses: actions/checkout@v4
+#         with:
+#           fetch-depth: 0
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
+#       - name: Setup Node.js
+#         uses: actions/setup-node@v4
+#         with:
+#           node-version: '20'
 
-      - name: Install dependencies
-        run: npm ci
+#       - name: Install dependencies
+#         run: npm ci
 
-      - name: Build project
-        run: npm run build
+#       - name: Build project
+#         run: npm run build
 
-      - name: Get PR diff
-        id: pr-diff
-        run: |
-          git diff origin/${{ github.event.pull_request.base.ref }}...HEAD > pr.diff
-          echo "Diff saved to pr.diff"
+#       - name: Get PR diff
+#         id: pr-diff
+#         run: |
+#           git diff origin/${{ github.event.pull_request.base.ref }}...HEAD > pr.diff
+#           echo "Diff saved to pr.diff"
 
-      - name: Run AI PR review script
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-        run: |
-          echo "Running AI review for PR #$PR_NUMBER"
-          node dist/reviewPr.js
+#       - name: Run AI PR review script
+#         env:
+#           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+#           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#           PR_NUMBER: ${{ github.event.pull_request.number }}
+#           GITHUB_REPOSITORY: ${{ github.repository }}
+#         run: |
+#           echo "Running AI review for PR #$PR_NUMBER"
+#           node dist/reviewPr.js
