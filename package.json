@@ -1,7 +1,7 @@
 {
   "type": "module",
   "scripts": {
-    "build": "tsc src/reviewPr.ts --outDir actions/ai_pr_reviewer/dist --target es2020 --module esnext --moduleResolution node",
+    "build": "tsc src/index.ts --outDir actions/ai_pr_reviewer/dist --target es2020 --module esnext --moduleResolution node",
     "start:pr": "npm run build && node actions/ai_pr_reviewer/dist/reviewPr.js"
   },
   "dependencies": {
