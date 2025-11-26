@@ -1,3 +1,6 @@
+    // "build": "tsc src/reviewPr.ts --outDir actions/ai_pr_reviewer/dist --target es2020 --module esnext --moduleResolution node",
+
+
 import { Octokit } from '@octokit/rest';
 import OpenAI from 'openai';
 import * as fs from 'fs';
