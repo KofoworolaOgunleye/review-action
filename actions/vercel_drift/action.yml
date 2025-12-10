@@ -1,0 +1,186 @@
+name: 'Vercel Drift Detection'
+description: 'Detects drift between Terraform Cloud state and actual infrastructure'
+
+inputs:
+  TF_API_TOKEN:
+    description: 'Terraform Cloud API token'
+    required: true
+  TF_CLOUD_ORGANIZATION:
+    description: 'Terraform Cloud organization name'
+    required: true
+  TF_WORKSPACE:
+    description: 'Terraform Cloud workspace name'
+    required: true
+  TF_BASE_DIRECTORY:
+    default: "infrastructure/project"
+  SLACK_WEBHOOK_URL:
+    description: 'Slack webhook URL for notifications'
+    required: true
+
+# outputs:
+#   drift_detected:
+#     description: 'Whether drift was detected (true/false)'
+#     value: ${{ steps.check-drift.outputs.drift_detected }}
+#   run_url:
+#     description: 'URL to the Terraform Cloud run'
+#     value: ${{ steps.plan-run.outputs.run_link }}
+#   add_count:
+#     description: 'Number of resources to add'
+#     value: ${{ steps.plan-output.outputs.add }}
+#   change_count:
+#     description: 'Number of resources to change'
+#     value: ${{ steps.plan-output.outputs.change }}
+#   destroy_count:
+#     description: 'Number of resources to destroy'
+#     value: ${{ steps.plan-output.outputs.destroy }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set global ENV vars
+      shell: bash
+      run: |
+          echo "TF_API_TOKEN=${{ inputs.TF_API_TOKEN }}" >> $GITHUB_ENV
+          echo "TF_CLOUD_ORGANIZATION=${{ inputs.TF_CLOUD_ORGANIZATION }}" >> $GITHUB_ENV
+
+    - name: Upload Configuration
+      uses: hashicorp/tfc-workflows-github/actions/upload-configuration@v1.3.2
+      id: plan-upload
+      with:
+        workspace: ${{ inputs.TF_WORKSPACE }}
+        directory: ${{ inputs.TF_BASE_DIRECTORY }}
+        speculative: true
+        
+    - name: Create Plan Run
+      uses: hashicorp/tfc-workflows-github/actions/create-run@v1.3.2
+      id: plan-run
+      with:
+        workspace: ${{ inputs.TF_WORKSPACE }}
+        configuration_version: ${{ steps.plan-upload.outputs.configuration_version_id }}
+        plan_only: true
+        message: "Drift detection check from GitHub Actions - Run ${{ github.run_id }}"
+
+    - name: Get Plan Output
+      uses: hashicorp/tfc-workflows-github/actions/plan-output@v1.3.2
+      id: plan-output
+      with:
+        plan: ${{ fromJSON(steps.plan-run.outputs.payload).data.relationships.plan.data.id }}
+
+    - name: Check for Drift
+      id: check-drift
+      shell: bash
+      run: |
+        ADD="${{ steps.plan-output.outputs.add }}"
+        CHANGE="${{ steps.plan-output.outputs.change }}"
+        DESTROY="${{ steps.plan-output.outputs.destroy }}"
+        
+        # echo "Resources to add: $ADD"
+        # echo "Resources to change: $CHANGE"
+        # echo "Resources to destroy: $DESTROY"
+        
+        if [ "$ADD" -gt 0 ] || [ "$CHANGE" -gt 0 ] || [ "$DESTROY" -gt 0 ]; then
+          DRIFT_DETECTED="true"
+          echo "Drift detected! $ADD to add, $CHANGE to change, $DESTROY to destroy"
+        else
+          DRIFT_DETECTED="false"
+          echo "No drift detected. Infrastructure matches Terraform configuration."
+        fi
+        
+        echo "drift_detected=$DRIFT_DETECTED" >> $GITHUB_OUTPUT
+        
+        # echo "add_count=$ADD" >> $GITHUB_OUTPUT
+        # echo "change_count=$CHANGE" >> $GITHUB_OUTPUT
+        # echo "destroy_count=$DESTROY" >> $GITHUB_OUTPUT
+            
+    - name: Send Slack Alert
+      if: steps.check-drift.outputs.drift_detected == 'true'
+      shell: bash
+      run: |
+        ADD="${{ steps.plan-output.outputs.add }}"
+        CHANGE="${{ steps.plan-output.outputs.change }}"
+        DESTROY="${{ steps.plan-output.outputs.destroy }}"
+        TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+        # echo "TIMESTAMP: $TIMESTAMP"
+
+        CHANGES_SUMMARY="Resources: +$ADD to Add, ~$CHANGE to Change, -$DESTROY to Destroy"
+
+        # echo "Changes Summary: $CHANGES_SUMMARY"
+
+        PAYLOAD=$(cat <<-EOF
+        {
+            "text": "🚨 Terraform Drift Detected",
+            "blocks": [
+              {
+                "type": "header",
+                "text": {
+                  "type": "plain_text",
+                  "text": "🚨 Terraform Drift Detected"
+                }
+              },
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "Manual changes detected on Vercel that differ from Terraform configuration."
+                }
+              },
+              {
+                "type": "section",
+                "fields": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Repository:*\n${{ github.repository }}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Workspace:*\n${{ inputs.TF_WORKSPACE }}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Organization:*\n${{ inputs.TF_CLOUD_ORGANIZATION }}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Detected on:* ${TIMESTAMP}"
+                  }
+                ]
+              },
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "```${CHANGES_SUMMARY}```"
+                }
+              },
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "*Action Required:*\n1. Review the drift details in Terraform Cloud\n2. Determine if the manual changes should be:\n   - Codified in Terraform, or\n   - Reverted by applying Terraform"
+                }
+              },
+              {
+                "type": "actions",
+                "elements": [
+                  {
+                    "type": "button",
+                    "text": {
+                      "type": "plain_text",
+                      "text": "View Drift Details"
+                    },
+                    "style": "primary",
+                    "url": "${{ steps.plan-run.outputs.run_link }}"
+                  }
+                ]
+              }
+              ]
+        }
+        EOF
+        )
+
+        echo "Generated Payload:"
+        echo "$PAYLOAD"
+
+        curl -X POST \
+          -H 'Content-type: application/json' \
+          --data "${PAYLOAD}" ${{ inputs.SLACK_WEBHOOK_URL }}
